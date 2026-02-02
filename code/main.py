@@ -84,6 +84,7 @@ class Game:
         self.collision_sprites.empty()
         self.bullet_sprites.empty()
         self.enemy_sprites.empty()
+        self.audio['music'].stop()
         self.setup()
         self.state = 'game'
 
@@ -154,6 +155,9 @@ class Game:
         restart_text = self.font_large.render('Restart', True, 'White')
         restart_rect = restart_text.get_rect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
 
+        # Stop the audio
+        
+        
         # Draw button background (hover effect)
         mouse_pos = pygame.mouse.get_pos()
         if restart_rect.collidepoint(mouse_pos):
