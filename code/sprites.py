@@ -1,5 +1,7 @@
 from settings import * 
 from timer import Timer
+from math import sin
+from random import randint
 
 class Sprite(pygame.sprite.Sprite):
     def __init__(self, pos, surf, groups):
@@ -54,19 +56,54 @@ class AnimatedSprite(Sprite):
         self.frame_index += self.animation_speed * dt
         self.image = self.frames[int(self.frame_index) % len(self.frames)]
 
-class Bee(AnimatedSprite):
+class Enemy(AnimatedSprite):
     def __init__(self, frames, pos, groups):
         super().__init__(frames, pos, groups)
-    
-    def update(self, dt):
-        self.animate(dt)
+        self.death_timer = Timer(200, func = self.kill)
 
-class Worm(AnimatedSprite):
-    def __init__(self, frames, pos, groups):
-        super().__init__(frames, pos, groups)
-    
+    def destroy(self):
+        self.death_timer.activate()
+        self.animation_speed = 0
+        self.image = pygame.mask.from_surface(self.image).to_surface()
+        self.image.set_colorkey('black')
+
     def update(self, dt):
-        self.animate(dt)
+        self.death_timer.update()
+        if not self.death_timer:
+            self.move(dt)
+            self.animate(dt)
+        self.constraint()
+
+class Bee(Enemy):
+    def __init__(self, frames, pos, groups, speed):
+        super().__init__(frames, pos, groups)
+        self.speed = speed
+        self.amplitude = randint(500,600)
+        self.frequency = randint(300,600)
+
+    def move(self, dt):
+        self.rect.x -= self.speed * dt
+        self.rect.y += sin(pygame.time.get_ticks() / self.frequency) * self.amplitude * dt
+    
+    def constraint(self):
+        if self.rect.right <= 0:
+            self.kill()
+
+class Worm(Enemy):
+    def __init__(self, frames, rect, groups):
+        super().__init__(frames, rect.topleft, groups)
+        self.rect.bottomleft = rect.bottomleft
+        self.main_rect = rect
+        self.speed = randint(160,200)
+        self.direction = 1
+    
+    def move(self, dt):
+        self.rect.x += self.direction * self.speed * dt
+
+    def constraint(self):
+        if not self.main_rect.contains(self.rect):
+            self.direction *= -1
+            self.frames = [pygame.transform.flip(surf, True, False) for surf in self.frames]
 
 class Player(AnimatedSprite):
     def __init__(self, pos, groups, collision_sprites, frames, create_bullet):
@@ -86,8 +123,8 @@ class Player(AnimatedSprite):
 
     def input(self):
         keys = pygame.key.get_pressed()
-        self.direction.x = int(keys[pygame.K_RIGHT]) + int(keys[pygame.K_d]) - int(keys[pygame.K_LEFT]) - int(keys[pygame.K_a])
-        if (keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]) and self.on_floor:
+        self.direction.x = int(keys[pygame.K_RIGHT]) - int(keys[pygame.K_LEFT])
+        if keys[pygame.K_SPACE] and self.on_floor:
             self.direction.y = -20
         
         if keys[pygame.K_s] and not self.shoot_timer:
