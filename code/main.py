@@ -172,7 +172,6 @@ class Game:
     def run(self):
         while self.running:
             dt = self.clock.tick(FRAMERATE) / 1000 
-
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False 
@@ -187,7 +186,7 @@ class Game:
             pygame.display.update()
         
         pygame.quit()
- 
+
 if __name__ == '__main__':
     game = Game()
     game.run() 

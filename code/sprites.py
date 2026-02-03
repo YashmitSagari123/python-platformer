@@ -123,11 +123,11 @@ class Player(AnimatedSprite):
 
     def input(self):
         keys = pygame.key.get_pressed()
-        self.direction.x = int(keys[pygame.K_RIGHT]) - int(keys[pygame.K_LEFT])
-        if keys[pygame.K_SPACE] and self.on_floor:
+        self.direction.x = int(keys[pygame.K_RIGHT]) + int(keys[pygame.K_d]) - int(keys[pygame.K_LEFT] - int(keys[pygame.K_a]))
+        if (keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]) and self.on_floor:
             self.direction.y = -20
         
-        if keys[pygame.K_s] and not self.shoot_timer:
+        if keys[pygame.MOUSEBUTTONDOWN] and not self.shoot_timer:
             self.create_bullet(self.rect.center, -1 if self.flip else 1)
             self.shoot_timer.activate()
 
