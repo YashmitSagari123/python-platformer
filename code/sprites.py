@@ -114,7 +114,7 @@ class Player(AnimatedSprite):
         # movement & collision
         self.direction = pygame.Vector2()
         self.collision_sprites = collision_sprites
-        self.speed = 400
+        self.speed = 150
         self.gravity = 50
         self.on_floor = False
 
@@ -127,7 +127,7 @@ class Player(AnimatedSprite):
         if (keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]) and self.on_floor:
             self.direction.y = -20
         
-        if keys[pygame.MOUSEBUTTONDOWN] and not self.shoot_timer:
+        if keys[pygame.K_LSHIFT] and not self.shoot_timer:
             self.create_bullet(self.rect.center, -1 if self.flip else 1)
             self.shoot_timer.activate()
 
