@@ -107,6 +107,12 @@ class Worm(Enemy):
         if not self.main_rect.contains(self.rect):
             self.direction *= -1
             self.frames = [pygame.transform.flip(surf, True, False) for surf in self.frames]
+    
+    def destroy(self):
+        # Schedule respawn before killing
+        self.game.schedule_worm_respawn(self.spawn_rect)
+
+        super().destroy()
 
 class Player(AnimatedSprite):
     def __init__(self, pos, groups, collision_sprites, character_data, create_bullet, scale = 1.0):
