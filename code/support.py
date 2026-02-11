@@ -19,3 +19,12 @@ def audio_importer(*path):
             full_path = join(folder_path, file_name)
             audio_dict[file_name.split('.')[0]] = pygame.mixer.Sound(full_path)
     return audio_dict
+
+def load_character(name):
+    base_path = join('images', 'player', name)
+    return {
+        "idle": import_image(base_path, 'idle'),
+        "walk_a": import_image(base_path, 'walk_a'),
+        "walk_b": import_image(base_path, 'walk_b'),
+        "jump": import_image(base_path, 'jump')
+    }
