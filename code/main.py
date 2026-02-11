@@ -14,8 +14,19 @@ class Game:
         self.running = True
         self.state = 'menu'
 
+        self.character_names = ["Sage", "Ember", "Coral", "Iris", "Solar"]
+        self.character_keys = ["beige", "green", "pink", "purple", "yellow"]
+        self.character_display = [
+            ("Ember", (210, 180, 140)),   # beige
+            ("Sage", (80, 200, 120)),     # green
+            ("Coral", (255, 105, 180)),   # pink
+            ("Iris", (170, 140, 255)),    # purple
+            ("Solar", (255, 200, 0))      # yellow
+        ]
+
+
         # fonts
-        font_path = pygame.font.match_font('minecraft')
+        font_path = join('data', 'fonts', 'GreatVibes-Regular.ttf')
         self.font = pygame.font.Font(font_path, 30) if font_path else pygame.font.Font(None, 30)
         self.font_large = pygame.font.Font(font_path, 60) if font_path else pygame.font.Font(None, 60)
         
@@ -33,7 +44,7 @@ class Game:
         self.setup()
 
         # timers 
-        self.bee_timer = Timer(100, func = self.create_bee, autostart = True, repeat = True)
+        self.bee_timer = Timer(1000, func = self.create_bee, autostart = True, repeat = True)
     
     def create_bee(self):
         Bee(frames = self.bee_frames, 
@@ -49,7 +60,14 @@ class Game:
 
     def load_assets(self):
         # graphics 
-        self.player_frames = import_folder('images', 'player')
+        self.characters = {
+            "beige": load_character("beige"),
+            "green": load_character("green"),
+            "pink": load_character("pink"),
+            "purple": load_character("purple"),
+            "yellow": load_character("yellow")
+        }
+        self.selected_character = "beige"
         self.bullet_surf = import_image('images', 'gun', 'bullet')
         self.fire_surf = import_image('images', 'gun', 'fire')
         self.bee_frames = import_folder('images', 'enemies', 'bee')
@@ -60,6 +78,12 @@ class Game:
         self.audio = audio_importer('audio')
 
     def setup(self):
+        self.all_sprites.empty()
+        self.collision_sprites.empty()
+        self.bullet_sprites.empty()
+        self.enemy_sprites.empty()
+        self.audio['music'].stop()
+        
         tmx_map = load_pygame(join('data', 'maps', 'world.tmx'))
         self.level_width = tmx_map.width * TILE_SIZE
         self.level_height = tmx_map.height * TILE_SIZE
@@ -72,9 +96,24 @@ class Game:
         
         for obj in tmx_map.get_layer_by_name('Entities'):
             if obj.name == 'Player':
-                self.player = Player((obj.x, obj.y), self.all_sprites, self.collision_sprites, self.player_frames, self.create_bullet)
+                character_data = self.characters[self.selected_character]
+                self.player = Player(
+                    (obj.x, obj.y),
+                    self.all_sprites,
+                    self.collision_sprites,
+                    character_data,
+                    self.create_bullet,
+                    scale=0.50
+                )
+
             if obj.name == 'Worm':
-                Worm(self.worm_frames, pygame.FRect(obj.x, obj.y, obj.width, obj.height), (self.all_sprites, self.enemy_sprites))
+                Worm(
+                    self.worm_frames,
+                    pygame.FRect(obj.x, obj.y, obj.width, obj.height),
+                    (self.all_sprites, self.enemy_sprites),
+                    self  # pass game reference
+                )
+
 
         # self.audio['music'].play(loops = -1)
         self.audio['music'].play(loops = -1)
@@ -106,6 +145,8 @@ class Game:
         self.bee_timer.update()
         self.all_sprites.update(dt)
         self.collision()
+        if self.player.rect.top > self.level_height:
+            self.state = 'game_over'
         self.display_surface.fill(BG_COLOR)
         self.all_sprites.draw(self.player.rect.center)
 
@@ -127,21 +168,58 @@ class Game:
         # Logo
         logo_rect = self.logo.get_rect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 4))
         self.display_surface.blit(self.logo, logo_rect)
+        
+        # character selection 
+        mouse_pos = pygame.mouse.get_pos()
+        slot_size = 110
+        y_pos = WINDOW_HEIGHT / 2 + 120
+        x_start = WINDOW_WIDTH / 2 - 240
+        spacing = 130
+        
+        select_text = self.font_large.render("Select Character", True, "White")
+        select_rect = select_text.get_rect(center=(WINDOW_WIDTH/2, y_pos - 100))
+        self.display_surface.blit(select_text, select_rect)
+
+
+        for index, key in enumerate(self.character_keys):
+
+            preview = self.characters[key]["idle"]
+            rect = preview.get_rect(center=(x_start + index * spacing, y_pos))
+            self.display_surface.blit(preview, rect)
+
+            # Get name + color
+            name, color = self.character_display[index]
+
+            # Highlight selected slightly brighter
+            if key == self.selected_character:
+                render_color = tuple(min(c + 40, 255) for c in color)
+            else:
+                render_color = color
+
+            name_text = self.font.render(name, True, render_color)
+            name_rect = name_text.get_rect(center=(rect.centerx, rect.bottom + 25))
+            self.display_surface.blit(name_text, name_rect)
+
+            # Selection click
+            if rect.collidepoint(mouse_pos) and pygame.mouse.get_pressed()[0]:
+                self.selected_character = key
 
         # Play Button
         play_text = self.font_large.render('PLAY', True, 'White')
-        play_rect = play_text.get_rect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
+        play_rect = play_text.get_rect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 1.3))
         
         # Draw button background (hover effect)
-        mouse_pos = pygame.mouse.get_pos()
         if play_rect.collidepoint(mouse_pos):
-            pygame.draw.rect(self.display_surface, (100, 100, 100), play_rect.inflate(20, 10))
+            pygame.draw.rect(self.display_surface, (100, 100, 100), play_rect.inflate(40, 40), border_radius=12)
             if pygame.mouse.get_pressed()[0]:
-                self.state = 'game'
+                    self.setup()      # build level with selected character
+                    self.state = 'game' 
         else:
-            pygame.draw.rect(self.display_surface, (50, 50, 50), play_rect.inflate(20, 10))
+            pygame.draw.rect(self.display_surface, (50, 50, 50), play_rect.inflate(40, 40), border_radius=12)
         
         self.display_surface.blit(play_text, play_rect)
+
+
 
     def run_game_over(self):
         self.draw_menu_background()
@@ -156,7 +234,7 @@ class Game:
         restart_rect = restart_text.get_rect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2))
 
         # Stop the audio
-        
+        self.audio['music'].stop()
         
         # Draw button background (hover effect)
         mouse_pos = pygame.mouse.get_pos()

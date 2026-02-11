@@ -90,12 +90,15 @@ class Bee(Enemy):
             self.kill()
 
 class Worm(Enemy):
-    def __init__(self, frames, rect, groups):
+    def __init__(self, frames, rect, groups, game):
         super().__init__(frames, rect.topleft, groups)
         self.rect.bottomleft = rect.bottomleft
         self.main_rect = rect
         self.speed = randint(160,200)
         self.direction = 1
+
+        self.spawn_rect = rect.copy()
+        self.game = game
     
     def move(self, dt):
         self.rect.x += self.direction * self.speed * dt
@@ -106,24 +109,42 @@ class Worm(Enemy):
             self.frames = [pygame.transform.flip(surf, True, False) for surf in self.frames]
 
 class Player(AnimatedSprite):
-    def __init__(self, pos, groups, collision_sprites, frames, create_bullet):
-        super().__init__(frames, pos, groups)
+    def __init__(self, pos, groups, collision_sprites, character_data, create_bullet, scale = 1.0):
+        def scale_image(image, scale):
+            width = int(image.get_width() * scale)
+            height = int(image.get_height() * scale)
+            return pygame.transform.scale(image, (width, height))
+        self.walk_frames = [
+            scale_image(character_data["walk_a"], scale),
+            scale_image(character_data["walk_b"], scale)
+        ]
+        super().__init__(self.walk_frames, pos, groups)
+        # animation frames
+        self.idle_frame = scale_image(character_data["idle"], scale)
+        self.jump_frame = scale_image(character_data["jump"], scale)
+
+        self.image = self.idle_frame
+        self.rect = self.image.get_frect(topleft=pos)
+
         self.flip = False
         self.create_bullet = create_bullet
-    
-        # movement & collision
+
+        # movement
         self.direction = pygame.Vector2()
         self.collision_sprites = collision_sprites
-        self.speed = 150
+        self.speed = 250
         self.gravity = 50
         self.on_floor = False
 
-        # timer
+        self.animation_index = 0
+        self.animation_speed = 10
+
         self.shoot_timer = Timer(500)
+
 
     def input(self):
         keys = pygame.key.get_pressed()
-        self.direction.x = int(keys[pygame.K_RIGHT]) + int(keys[pygame.K_d]) - int(keys[pygame.K_LEFT] - int(keys[pygame.K_a]))
+        self.direction.x = (int(keys[pygame.K_RIGHT]) + int(keys[pygame.K_d])) + (int(keys[pygame.K_LEFT]) - int(keys[pygame.K_a]))
         if (keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]) and self.on_floor:
             self.direction.y = -20
         
@@ -157,15 +178,19 @@ class Player(AnimatedSprite):
         self.on_floor = True if bottom_rect.collidelist([sprite.rect for sprite in self.collision_sprites]) >= 0 else False
 
     def animate(self, dt):
-        if self.direction.x:
-            self.frame_index += self.animation_speed * dt
-            self.flip = self.direction.x < 0
+        if not self.on_floor:
+            self.image = self.jump_frame
         else:
-            self.frame_index = 0
+            if self.direction.x != 0:
+                self.animation_index += self.animation_speed * dt
+                frame = int(self.animation_index) % len(self.walk_frames)
+                self.image = self.walk_frames[frame]
+                self.flip = self.direction.x < 0
+            else:
+                self.image = self.idle_frame
 
-        self.frame_index = 1 if not self.on_floor else self.frame_index
-        self.image = self.frames[int(self.frame_index) % len(self.frames)]
         self.image = pygame.transform.flip(self.image, self.flip, False)
+
 
     def update(self, dt):
         self.shoot_timer.update()
